@@ -1,0 +1,507 @@
+﻿<html>
+	<head>
+		<title>WebGL CM20219 – Coursework 2 – WebGL</title>
+        <meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body { margin: 0; overflow: hidden; }
+			canvas { width: 100%; height: 100%; }
+		</style>
+	</head>
+	<body>
+		<script src="three.js"></script>
+		<script src="OBJLoader.js"></script>
+		<script>
+		
+            "use strict"; // https://stackoverflow.com/q/1335851/72470
+            // Global variables that are available in all functions.
+            // Note: You can add your own here, e.g. to store the rendering mode.
+			/*Set all sorts of global variables*/
+            var camera, scene, renderer, mesh, controls, mouseIsDown, mouseIsUp, camRadius, centre, cube,
+				bunnyObject, rightMouseIsDown, rightMouseIsUp, rightMouseDownX, bunnyVertices, bunnyEdges,
+				bunnyEdgeLines, ballCube, floor, helper, light, debugLight, textureMaterial;
+									var box, bXLength, bYLength, bZLength; 				
+			var bounceConstant = 5;
+			var floorGeometry = new THREE.BoxGeometry(10, 0.1, 10);
+			var goXMinus = false;				
+			var goXPlus = false;
+			var goZMinus = false;
+			var goZPlus = false;
+			var basketGame = false;
+			var vector, intersects, index, goUp;
+			var speed = 0.1;
+			var raycaster = new THREE.Raycaster(); 
+			var camZoomSet = 10;
+				var goForward = false;
+			var theta = 45; 
+			var phi = 60;
+			var rotateSpeed = 0.02;
+			var boxX = 1;
+			var boxY = 1;
+			var boxZ = 1;
+			var geometry = new THREE.BoxGeometry(boxX, boxY, boxZ);
+			var ballcubeMaterial = new THREE.MeshBasicMaterial({color:0x33AA55, transparent:true, opacity:0});
+			var material = new THREE.MeshBasicMaterial({ color: 0x7777ff});
+			var axesHelper = new THREE.AxesHelper(5, 1);
+			var edges = new THREE.EdgesGeometry(geometry);
+			var edgeLines = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({color: 0xffffff}));
+			var vertexMats = new THREE.PointsMaterial({ size: 8, sizeAttenuation: false, transparent: true });
+            var vertices = new THREE.Points	(geometry, vertexMats);
+            //vertices.sortvertex = true; //?
+				var sphereGeometry, sphereMaterial, sphere;
+
+			var onMouseDownTheta, onMouseDownPhi, onMouseDownX, onMouseDownY;
+			var xAxis = new THREE.Vector3(1,0,0);
+			var yAxis = new THREE.Vector3(0,1,0);
+			var zAxis = new THREE.Vector3(0,0,1);
+			var ZSpeed, XSpeed;
+			var firstAnimate = true;
+			var bounceStrength = 0.03;
+			var rotateX = 0;
+			var rotateY = 0;
+			var rotateZ = 0;
+			var cameraX = 3;
+			var cameraY = 4;
+			var cameraZ = 5;
+			var camTransX = 0;
+			var camTransY = 0;
+			var camTransZ = 0;
+			var bunnyButton = false;
+            // Initialise the scene, and draw it for the first time.
+            init();
+			// Continue to loop through animation
+			animate();
+
+            // Listen for keyboard events, to react to them.
+            // Note: there are also other event listeners, e.g. for mouse events.
+            document.addEventListener('keydown', handleKeyDown);
+			document.addEventListener('mousemove', onDocumentMouseMove); 
+            document.addEventListener( 'mousedown', onDocumentMouseDown);
+			document.addEventListener( 'mouseup', onDocumentMouseUp);
+			document.addEventListener( 'mousewheel', onDocumentMouseWheel);
+
+
+ // Scene initialisation. This function is only run once, at the very beginning.
+            function init(){
+                scene = new THREE.Scene();
+				/* instantiate a loader 								*/
+				var loader = new THREE.TextureLoader();
+				/* Instantiate the texture for the basketball floor 	*/
+				var texture = loader.load('images/floor.jpg');
+				/* UInsantiate the material used for the floors 		*/
+				var floorMaterial = new THREE.MeshBasicMaterial({map: texture});
+				/* Merge them into a mesh 								*/
+				floor = new THREE.Mesh(floorGeometry, floorMaterial);
+				/* Create a basic material for the cube 				*/
+				material = new THREE.MeshBasicMaterial( {color: 0x669966} );
+				/* Create a texture material for the cube				*/
+				textureMaterial = [
+					/*The texture material is an array of 6 items, each	*/
+					/*containing one side of the cube's textures		*/
+				   new THREE.MeshBasicMaterial({map: loader.load('images/sides1.png')}),
+				   new THREE.MeshBasicMaterial({map: loader.load('images/sides2.png')}),
+				   new THREE.MeshBasicMaterial({map: loader.load('images/top.png')}), //top
+				   new THREE.MeshBasicMaterial({map: loader.load('images/bottom.png')}), //bottom
+				   new THREE.MeshBasicMaterial({map: loader.load('images/sides3.png')}),
+				   new THREE.MeshBasicMaterial({map: loader.load('images/sides4.png')})
+				];
+				/*Create the cube mesh using the geometry and material	*/
+				cube = new THREE.Mesh(geometry,material);
+				/*As well as an invisible cube, to be positioned over 	*/
+				/*the bouncing ball										*/
+				ballCube = new THREE.Mesh(geometry, ballcubeMaterial);
+				/*Create the geometry for the sphere (for the ball)		*/
+				sphereGeometry = new THREE.SphereGeometry(0.5, 50, 50, 0, Math.PI*2, 0, Math.PI*2);
+				/*As well as  texture for the ball						*/
+				texture = loader.load('images/basketball.png');
+				/*Creating a material using the teture					*/
+				sphereMaterial = new THREE.MeshBasicMaterial({map: texture});
+				/*Create the mesh of the sphere							*/
+				sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+				/*Position it and add it to scene						*/
+				sphere.position.x = 2;
+				sphere.position.y = 1;
+				scene.add(ballCube);
+				/*Set up the camera, move it up and look at origin		*/
+                camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                centre = new THREE.Vector3(0, 0, 0);
+				camera.position.set(cameraX, cameraY, cameraZ); //no longer used
+				/*The new positioning used due to orbital controls		*/
+				/*Uses polar coordinates 								*/
+				camera.position.x = camZoomSet*(Math.sin( theta * Math.PI / 360 )* Math.cos( phi * Math.PI / 360 ));
+				camera.position.y = camZoomSet*Math.sin( phi * Math.PI / 360 );
+				camera.position.z = camZoomSet*Math.cos( theta * Math.PI / 360 )* Math.cos( phi * Math.PI / 360 );
+                camera.lookAt(centre); //the centre can be translated, hence it is a variable
+				/*Draw a helper grid in the x-z plane (note: y is up).	*/
+                scene.add(new THREE.GridHelper(10, 10));
+				/*Create edges geom, shaped by the lsgms of the cube	*/
+				var edges = new THREE.LineSegments(cube);
+				/*Add the cube to the scene								*/
+                scene.add(cube);
+				/*load in the rabbit obj								*/
+				/*Instantiate an OBJLoader (seperate library)				*/
+				var loader = new THREE.OBJLoader();
+				loader.load('bunny-5000.obj',
+					function ( object ) {bunnyObject = object;
+						 /* For the vertices, use a pointcloud using its geometry, much like the cube */
+						 bunnyVertices = new THREE.PointCloud(bunnyObject.children["0"].geometry, vertexMats);
+						 /* Again much like the cube, use its geometry to create edges, then form them*/
+						 bunnyEdges = new THREE.EdgesGeometry(bunnyObject.children["0"].geometry);
+						 bunnyEdgeLines = new THREE.LineSegments(bunnyEdges, new THREE.LineBasicMaterial({color: 0xffffff}));
+						 },
+				);
+				/*Add some light*/
+				light = new THREE.DirectionalLight(0xffffff);
+				light.position.set(10, 10, 10);
+				light.target.position.set(0, 0, 0);
+				light.castShadow = true;
+				scene.add(light);
+				/*Add a camera helpers, which helps see the origin and what the
+				  camera is pointing at*/
+				helper = new THREE.CameraHelper( light.shadow.camera );
+
+				/*Enable shadows on objects*/
+				cube.castShadow = true;
+				cube.receiveShadow = true;
+				light.castShadow = true;
+			
+				/*offset axes by a very small amount so they show over grid*/
+				axesHelper.position.set(0.001,0,0.001);
+                /* Visualize the axes of the global coordinate system (requirement 2).*/
+				scene.add(axesHelper);
+                // Set up the Web GL renderer.
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+				renderer.setPixelRatio(window.devicePixelRatio); // HiDPI/retina rendering
+                renderer.setSize(window.innerWidth, window.innerHeight);
+				/*Set shadows for renderer*/
+				renderer.shadowMap.Enabled = true;
+				renderer.shadowMapSoft = true;
+				/*Handle resizing of the window*/
+                document.body.appendChild(renderer.domElement);
+				window.addEventListener('resize', handleResize, false);
+            }
+
+
+
+            /*Handle resizing of the browser window*/
+            function handleResize(){
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize(window.innerWidth, window.innerHeight);
+			}
+			/*On initial load, set the bunny to the right scale
+			  and position*/
+			function sizeBunny(){
+						/*Create a box around the bunny*/
+						box = new THREE.Box3().setFromObject(bunnyObject);
+						/*Find the X, Y and Z length of the box, by taking
+						  the coordinates of the extremities and subtracting them*/
+                        bXLength = box.max.x - box.min.x;
+                        bYLength = box.max.y - box.min.y;
+                        bZLength = box.max.z - box.min.z;
+						/*Scale the bunny, in faces, edges and vertices*/
+                        bunnyObject.scale.x = boxX / bXLength;
+                        bunnyObject.scale.y = boxY / bYLength;
+                        bunnyObject.scale.z = boxZ / bZLength;
+						bunnyEdgeLines.scale.x = boxX / bXLength;
+                        bunnyEdgeLines.scale.y = boxY / bYLength;
+                        bunnyEdgeLines.scale.z = boxZ / bZLength;
+						bunnyVertices.scale.x = boxX / bXLength;
+                        bunnyVertices.scale.y = boxY / bYLength;
+                        bunnyVertices.scale.z = boxZ / bZLength;
+						/*Also position it at x=-0.25 so it's centered*/
+						bunnyObject.position.x = -0.25;
+						bunnyEdgeLines.position.x = -0.25;
+						bunnyVertices.position.x = -0.25;
+			} // Animation loop function. This function is called whenever an update is required.
+			function animate(){
+				/*Request a frame*/
+				requestAnimationFrame(animate);
+				/*Positioning of the sphere (basketball) during the game*/
+				/*Z-axis movement*/
+				if(sphere.position.z <= -5){goZMinus = false;goZPlus = true;}
+				if(sphere.position.z >= 5){goZPlus = false;goZMinus = true;}
+				if(goZPlus){sphere.position.z += ZSpeed;}
+				if(goZMinus){sphere.position.z -= ZSpeed;}
+				/*X-axis movement*/
+				if(sphere.position.x <= -5){goXMinus = false; goXPlus = true;}
+				if(sphere.position.x >= 5){goXPlus = false; goXMinus = true;}
+				if(goXPlus){sphere.position.x += XSpeed;}
+				if(goXMinus){sphere.position.x -= XSpeed;}
+				/*Z-axis (bounce) movement*/
+				if(ZSpeed > 0){ZSpeed -= 0.0003;}
+				if(XSpeed > 0){XSpeed -= 0.0003;}
+				/*Rotate the ball slightly every iteration*/
+				sphere.rotation.x += 0.02;
+				/*Ball bounce mechanic*/
+				if(sphere.position.y <= 0.5){goUp = true;}
+				/*Reset the speed mechanic */
+				speed = 0;
+				/*In essence it takes the current height and makes it
+				  bounce slower as it goes to the top of the bounce, 
+				  and faster as it reaches the ground.*/
+				if(goUp){
+					speed = (bounceConstant-(sphere.position.y*1.15))*bounceStrength;
+					sphere.position.y += speed;
+				}
+				if(sphere.position.y >= (bounceConstant*0.8)){
+					goUp = false;
+				}
+				if(!goUp){
+					speed = (bounceConstant-(sphere.position.y*1.15))*bounceStrength;
+					sphere.position.y -= speed;
+				}
+				/*If the ball bounces out of control, reset it*/
+				if(sphere.position.y > 8 || sphere.position.y < 0){
+					sphere.position.y = 0;
+				}
+				/*Set the cube that wraps up the sphere at its position*/
+				ballCube.position.x = sphere.position.x;
+				ballCube.position.y = sphere.position.y;
+				ballCube.position.z = sphere.position.z;
+
+				/*If the cube rotate X, Y or Z button is pressed,
+				  every animation iteration it will move the rotation
+				  by a small amount (equal to the rotationSpeed, set by
+				  the + and - keys.*/
+				if(rotateX == 1){cube.rotation.x += rotateSpeed; 
+								 vertices.rotation.x += rotateSpeed; 
+								 edgeLines.rotation.x += rotateSpeed;}
+				if(rotateY == 1){cube.rotation.y += rotateSpeed; 
+								 vertices.rotation.y += rotateSpeed; 
+								 edgeLines.rotation.y += rotateSpeed;}
+				if(rotateZ == 1){cube.rotation.z += rotateSpeed; 
+								 vertices.rotation.z += rotateSpeed; 
+								 edgeLines.rotation.z += rotateSpeed;}
+				/*Similar to the cube rotation, but applied to the bunny*/
+				if(bunnyButton){
+					bunnyObject.rotation.x += rotateSpeed;bunnyObject.rotation.y += rotateSpeed;bunnyObject.rotation.z += rotateSpeed;
+					bunnyEdgeLines.rotation.x += rotateSpeed;bunnyEdgeLines.rotation.y += rotateSpeed;bunnyEdgeLines.rotation.z += rotateSpeed;
+					bunnyVertices.rotation.x += rotateSpeed;bunnyVertices.rotation.y += rotateSpeed;bunnyVertices.rotation.z += rotateSpeed;
+				}
+				/*Re-render the frame*/
+				renderer.render(scene, camera);
+			}
+
+            /* Handle keyboard presses. */
+            function handleKeyDown(event){
+                switch (event.key){
+                    // Render modes.
+                    case 'f': // f = face
+                        scene.remove(edgeLines);
+						scene.remove(vertices);
+                        scene.add(cube);
+						break;
+                    case 'e': // e = edge
+						scene.remove(vertices);
+						scene.remove(cube);
+                        scene.add(edgeLines);
+                        break;
+                    case 'v': // v = vertex			
+						scene.remove(cube);
+						scene.remove(edgeLines);
+						scene.add(vertices);
+                        break;
+					case 'b': // rotate the bunny
+						if(bunnyButton == 0){bunnyButton = 1;}else{bunnyButton = 0;}
+						break;
+					case 'x': // rotate cube on X axis
+						if(rotateX == 0){rotateX = 1;}else{rotateX = 0;}
+						break;
+					case 'y': // rotate cube on Y axis
+						if(rotateY == 0){rotateY = 1;}else{rotateY = 0;}
+						break;
+					case 'z': // rotate cube on Z axis
+						if(rotateZ == 0){rotateZ = 1;}else{rotateZ = 0;}
+						break;
+					case 't': // Add textures to the cube and add it
+						scene.remove(cube);
+						cube = new THREE.Mesh(geometry,textureMaterial);
+						scene.add(cube);
+						break;
+					case 'r': // Reset everything back to its initial positions
+						cube.rotation.x = 0;cube.rotation.y = 0;cube.rotation.z = 0;
+						vertices.rotation.x = 0;vertices.rotation.y = 0;vertices.rotation.z = 0;
+						edgeLines.rotation.x = 0;edgeLines.rotation.y = 0;edgeLines.rotation.z = 0;
+						bunnyObject.rotation.x = 0;bunnyObject.rotation.y = 0;bunnyObject.rotation.z = 0;
+						bunnyEdgeLines.rotation.x = 0;bunnyEdgeLines.rotation.y = 0;bunnyEdgeLines.rotation.z = 0;
+						bunnyVertices.rotation.x = 0;bunnyVertices.rotation.y = 0;bunnyVertices.rotation.z = 0;
+						scene.remove(bunnyObject);
+						scene.remove(bunnyEdgeLines);
+						scene.remove(bunnyVertices);
+						break;
+					case '+': //speed up X, Y, Z rotations and strength of basketball bounce
+						rotateSpeed = rotateSpeed*2;
+						if(bounceStrength < 0.20){
+						bounceStrength += 0.01;
+						}
+						break;
+					case '-': //slow down X, Y, Z rotations and strength of basketball bounce
+						rotateSpeed = rotateSpeed/2;
+						if(bounceStrength > 0.01){
+						bounceStrength -= 0.01;
+						}
+						break;
+					case '4':	// Translate camera to the left
+						camera.translateOnAxis(xAxis, -0.05);
+						break;
+					case '6':  // Translate camera to the right
+						camera.translateOnAxis(xAxis, 0.05);
+					break;
+					case '8': // Translate camera forward
+						camera.translateOnAxis(zAxis, -0.05);
+					break;
+					case '2': // Translate camera backward
+						camera.translateOnAxis(zAxis,0.05);
+						break;
+					case '7': // Translate camera up
+					 	camera.translateOnAxis(yAxis, 0.05);
+						break;
+					case '9': // Translate camera down
+					 	camera.translateOnAxis(yAxis, -0.05);
+						break;
+					case 'l': // Render the bunny in vertices
+						if(firstAnimate){sizeBunny();firstAnimate = false;}
+						scene.add(bunnyVertices);
+						scene.remove(bunnyEdgeLines);
+						scene.remove(bunnyObject);
+						break;
+					case 'j': // Render the bunny in faces
+						if(firstAnimate){sizeBunny();firstAnimate = false;}
+						scene.remove(bunnyVertices);
+						scene.remove(bunnyEdgeLines);
+						scene.add(bunnyObject);
+						break;
+					case 'k': // Render the bunny edges
+						if(firstAnimate){sizeBunny();firstAnimate = false;}
+						scene.remove(bunnyVertices);
+						scene.add(bunnyEdgeLines);
+						scene.remove(bunnyObject);
+						break;
+					case 'd': // Show the lights debug
+						if(debugLight == false){
+							scene.add(helper);
+							debugLight = true;
+						}else{
+							scene.remove(helper);
+							debugLight = false;
+						}
+						break;
+					case 'p': // Clear the entire field and start the basketball game
+						if(basketGame == false){
+							scene.add(sphere);
+							scene.add(floor);
+							scene.remove(cube);
+							scene.remove(bunnyObject);
+							scene.remove(bunnyVertices);
+							scene.remove(bunnyEdgeLines);
+							scene.remove(vertices);
+							scene.remove(edgeLines);
+							scene.remove(axesHelper);
+							basketGame = true;
+						}else{ // if it's already in a game, reset it back to the cube view
+							scene.add(cube);
+							scene.add(axesHelper);
+							scene.remove(sphere);
+							scene.remove(floor);
+							basketGame = false;
+						}
+						break;					
+                }
+
+            }
+		function onDocumentMouseUp(e){
+			// When moving the mouse up, notify the global variables
+			mouseIsUp = true;
+			mouseIsDown = false;
+			rightMouseIsDown = false;
+		}
+		function onDocumentMouseDown(e){
+			/* A vector used as a "line" which points through objects using the mouses position*/
+		   vector = new THREE.Vector3((event.clientX/window.innerWidth)*2-1,-(event.clientY/window.innerHeight)*2+1,0.5);
+		   vector.unproject( camera );
+		   /*Cast the ray from the current camera position*/
+		   raycaster.set( camera.position, vector.sub( camera.position ).normalize() );
+			/*When the basketball is intersected put that into intersects*/
+		   intersects = raycaster.intersectObject( ballCube );
+		   /*Push the ball in the appropriate direction*/
+		   if ( intersects.length > 0 ) {
+			  index = Math.floor( intersects[0].faceIndex / 2 );
+			  switch (index) {
+				 case 0: 
+					XSpeed = 0.1;
+					goXMinus = true;
+					goXPlus = false;
+					break;
+				 case 1: 
+					XSpeed = 0.1;
+				 	goXPlus = true;
+					goXMinus = false;
+					break;
+				 case 2: 
+					if(bounceConstant <= 8){bounceConstant++;}
+					break;
+				 case 3: 
+					if(bounceConstant >= 3){sphere.position.y = bounceConstant -1;bounceConstant--;}
+					break;
+				 case 4: 
+					ZSpeed = 0.1;
+					goZMinus = true;
+					goZPlus = false;
+					break;
+				 case 5: 
+					ZSpeed = 0.1;
+					goZPlus = true;
+					goZMinus = false;
+					break;
+
+			  }
+			rightMouseIsDown = true;
+			rightMouseDownX = e.clientX;
+			}else{
+			mouseIsUp = false;
+			mouseIsDown = true;
+			onMouseDownTheta = theta;
+			onMouseDownPhi = phi;
+			onMouseDownX = event.clientX;
+			onMouseDownY = event.clientY;
+			}
+			/*Also sets MOuseDownPhi/Theta/X/Y for Orbital camera use*/
+	}
+	
+		function onDocumentMouseWheel(e){
+			/* When you scroll in a certain direction, move the camera*/
+			if (e.wheelDeltaY > 0){ 		//scroll up
+			camZoomSet -= 0.25;
+			}else{ 							//scroll down
+			camZoomSet += 0.25;
+			}
+			/*Use camZoomSet as the radius for the new camera position*/
+			camera.position.x = camZoomSet*(Math.sin( theta * Math.PI / 360 )* Math.cos( phi * Math.PI / 360 ));
+			camera.position.y = camZoomSet*Math.sin( phi * Math.PI / 360 );
+			camera.position.z = camZoomSet*Math.cos( theta * Math.PI / 360 )* Math.cos( phi * Math.PI / 360 );
+			camera.lookAt(centre);
+
+		}
+		function onDocumentMouseMove( e ) {
+			if(rightMouseIsDown){
+			/*For potential future use, if right click is pressed, do something*/
+			}
+			if ( mouseIsDown ) {
+				/*If th emouse moves while the mouse is held down, find the current
+				x and y position and compare these to where the mouse was held down 
+				originally to find the phi and theta polar coordinates*/
+				theta = - ( ( e.clientX - onMouseDownX ) * 0.5 )+ onMouseDownTheta;
+				phi = ( ( e.clientY - onMouseDownY  ) * 0.5 )+ onMouseDownPhi;
+				/*Set the X, Y and Z carthesian coordinates to the location of the
+				  polar coordinates*/
+				camera.position.x = camZoomSet*(Math.sin( theta * Math.PI / 360 )* Math.cos( phi * Math.PI / 360 ));
+				camera.position.y = camZoomSet*Math.sin( phi * Math.PI / 360 );
+				camera.position.z = camZoomSet*Math.cos( theta * Math.PI / 360 )* Math.cos( phi * Math.PI / 360 );
+			}
+			/*Anytime the camera moves, look back at the "centre"*/
+			camera.lookAt(centre);			
+		}
+		</script>
+	</body>
+</html>
